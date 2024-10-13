@@ -1,0 +1,18 @@
+org: yishida3
+
+service: serverless-framework-tutorial
+
+provider:
+  name: aws
+  region: ap-northeast-1
+  runtime: python3.12
+  profile: serverless-tutorial-agent
+  stage: ${opt:stage, 'dev'}
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - httpApi:
+          path: /
+          method: get

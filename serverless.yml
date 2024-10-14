@@ -2,17 +2,20 @@ org: yishida3
 
 service: serverless-framework-tutorial
 
+custom:
+  defaultStage: dev
+
 provider:
   name: aws
   region: ap-northeast-1
   runtime: python3.12
   profile: serverless-tutorial-agent
-  stage: ${opt:stage, 'dev'}
+  stage: ${opt:stage, self:custom.defaultStage}
 
 functions:
   hello:
     handler: handler.hello
     events:
-      - httpApi:
+      - http:
           path: /
           method: get

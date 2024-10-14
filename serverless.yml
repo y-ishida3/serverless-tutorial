@@ -2,8 +2,20 @@ org: yishida3
 
 service: serverless-framework-tutorial
 
+plugins:
+  - serverless-apigw-binary
+  - serverless-offline
+  - serverless-plugin-ifelse
+
 custom:
   defaultStage: dev
+  apigwBinary:
+    types:
+      - multipart/form-data
+  serverlessIfElse:
+    - If: '"${opt:stage}" != "local"'
+      Exclude:
+        - functions.hello.handler
 
 provider:
   name: aws
@@ -13,16 +25,17 @@ provider:
   stage: ${opt:stage, self:custom.defaultStage}
   ecr:
     images:
-      containerLambda:
-        path: ./src
+      container-lambda:
+        path: ./api
 
 functions:
   hello:
     # name: ${self:service}-hello-${self:provider.stage}
+    handler: api.handler.hello
     image:
-      name: containerLambda
-      command: src.handler.hello
+      name: container-lambda
+      command: api.handler.hello
     events:
       - http:
           path: /
-          method: get
+          method: any

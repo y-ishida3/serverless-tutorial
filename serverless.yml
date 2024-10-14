@@ -11,10 +11,17 @@ provider:
   runtime: python3.12
   profile: serverless-tutorial-agent
   stage: ${opt:stage, self:custom.defaultStage}
+  ecr:
+    images:
+      containerLambda:
+        path: ./src
 
 functions:
   hello:
-    handler: handler.hello
+    # name: ${self:service}-hello-${self:provider.stage}
+    image:
+      name: containerLambda
+      command: src.handler.hello
     events:
       - http:
           path: /

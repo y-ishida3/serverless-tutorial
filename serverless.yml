@@ -30,7 +30,7 @@ provider:
 
 functions:
   solve:
-    name: ${self:service}-solveo-${self:provider.stage}
+    name: ${self:service}-solve-${self:provider.stage}
     # serverless-offlineを利用するためにhandlerを定義（plugin-ifelseでlocal実行以外は除外）
     handler: api.handler.solve
     image:

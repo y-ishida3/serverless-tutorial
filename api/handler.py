@@ -34,7 +34,7 @@ def preprocess(event) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def postprocess(solution_df):
-    # :TODO csvのcolumnに文字化けが発生する
+    # :TODO csvのcolumnに文字化けが発生するので、解消する必要がある
     buffer = io.BytesIO()
     solution_df.to_csv(buffer, index=False, encoding='utf-8', sep=',')
     body = base64.b64encode(buffer.getvalue()).decode('utf-8')

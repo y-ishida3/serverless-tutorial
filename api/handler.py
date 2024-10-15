@@ -34,23 +34,26 @@ def preprocess(event) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def postprocess(solution_df):
-    """データフレームを csv に変換する関数"""
-    ret = solution_df.to_json()
-    response = {
-        'headers': {'Content-Type': ''},
-        'body': {'message': '', 'data': ''}
-    }
-    response['statusCode'] = 200
-    response['headers']['Content-Type'] = 'text/csv'
-    response['body']['message'] = 'OK'
-    response['body']['data'] = ret
+    # :TODO csvのcolumnに文字化けが発生する
+    buffer = io.BytesIO()
+    solution_df.to_csv(buffer, index=False, encoding='utf-8', sep=',')
+    body = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-    response['body'] = json.dumps(response['body'])
+    response = {}
+    response['statusCode'] = 200
+    response['isBase64Encoded'] = True
+    response['headers'] = {
+        'Content-Type': 'text/csv',
+        'Content-disposition': 'attachment; filename=hoge.csv'
+    }
+    response['body'] = json.dumps({
+        'data': body
+    })
 
     return response
 
 
-def hello(event, context):
+def solve(event, context):
     students, cars = preprocess(event)
     solution: pd.DataFrame = CarGroupProblem(students, cars).solve()
     response = postprocess(solution)

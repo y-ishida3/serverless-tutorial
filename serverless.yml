@@ -3,13 +3,13 @@ org: yishida3
 service: serverless-framework-tutorial
 
 plugins:
-  - serverless-apigw-binary
   - serverless-offline
+  - serverless-plugin-custom-binary
   - serverless-plugin-ifelse
 
 custom:
   defaultStage: dev
-  apigwBinary:
+  apigatewayBinary:
     types:
       - multipart/form-data
   serverlessIfElse:

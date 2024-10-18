@@ -1,5 +1,5 @@
 import base64
-from cgi import FieldStorage
+from cgi import parse_multipart, parse_header
 import io
 import json
 from typing import Dict, Tuple
@@ -14,41 +14,50 @@ except ModuleNotFoundError:
 
 
 def preprocess(event) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    fp = io.BytesIO(base64.b64decode(event['body']))
-    environ = {'REQUEST_METHOD': 'POST'}
-    headers = {
-        'content-type': event['headers']['Content-Type'],
-        'content-length': event['headers']['Content-Length']
-    }
+    # cf. https://tmyoda.hatenablog.com/entry/20210304/1614800890
+    if event['headers'].get('content-type'):
+        c_type, c_data = parse_header(event['headers']['content-type'])
+    elif event['headers'].get('Content-Type'):
+        c_type, c_data = parse_header(event['headers']['Content-Type'])
+    else:
+        raise RuntimeError('content-type or Content-Type not found')
 
-    fs = FieldStorage(fp=fp, environ=environ, headers=headers)
+    # :NOTE serverless offlineでrequest投げた時とdeploy後のlambdaのrequestが違うため
+    if event['isBase64Encoded']:
+        # base64でencodeされている場合は、base64でdecodeしてbyte型に
+        body: bytes = base64.b64decode(event['body'])
+    else:
+        # strの場合はencodeしてbyte型に
+        body: bytes = event['body'].encode(encoding='utf-8')
+    # For Python 3: these two lines of bugfixing are mandatory
+    # cf. https://stackoverflow.com/questions/31486618/cgi-parse-multipart-function-throws-typeerror-in-python-3
+    c_data['boundary'] = bytes(c_data['boundary'], 'utf-8')
+    data_dict = parse_multipart(io.BytesIO(body), c_data)
+
+    files = {k: v[0] for k, v in data_dict.items()}
 
     dfs: Dict[str, pd.DataFrame] = {}
-    for f in fs.list:
-        if f.name == 'students':
-            dfs['students'] = pd.read_csv(io.BytesIO(f.value))
-        if f.name == 'cars':
-            dfs['cars'] = pd.read_csv(io.BytesIO(f.value))
+    for key, value in files.items():
+        if key == 'students':
+            dfs['students'] = pd.read_csv(io.BytesIO(value))
+        if key == 'cars':
+            dfs['cars'] = pd.read_csv(io.BytesIO(value))
 
     return dfs['students'], dfs['cars']
 
 
 def postprocess(solution_df):
-    # :TODO csvのcolumnに文字化けが発生するので、解消する必要がある
-    buffer = io.BytesIO()
+    buffer = io.StringIO()
     solution_df.to_csv(buffer, index=False, encoding='utf-8', sep=',')
-    body = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    body = buffer.getvalue()
 
     response = {}
     response['statusCode'] = 200
-    response['isBase64Encoded'] = True
     response['headers'] = {
         'Content-Type': 'text/csv',
-        'Content-disposition': 'attachment; filename=hoge.csv'
+        'Content-disposition': 'attachment; filename=test.csv'
     }
-    response['body'] = json.dumps({
-        'data': body
-    })
+    response['body'] = body
 
     return response
 

@@ -1,98 +1,74 @@
-<!--
-title: 'AWS Simple HTTP Endpoint example in Python'
-description: 'This template demonstrates how to make a simple HTTP API with Python running on AWS Lambda and API Gateway using the Serverless Framework.'
-layout: Doc
-framework: v4
-platform: AWS
-language: python
-authorLink: 'https://github.com/serverless'
-authorName: 'Serverless, Inc.'
-authorAvatar: 'https://avatars1.githubusercontent.com/u/13742415?s=200&v=4'
--->
+# はじめに
+[Pythonではじめる数理最適化 ケーススタディでモデリングのスキルを身につけよう](https://www.ohmsha.co.jp/book/9784274227356/)の第6章を題材に、AWSのlambdaにAPIを開発・deployするまでの環境を構築した。  
+今回は、AWS lambdaの開発とdeployをserverless frameworkを用いて開発を行った。  
 
-# Serverless Framework Python HTTP API on AWS
+[serverless framework](https://www.serverless.com/)とは、サーバーレスなアプリケーションを簡単に開発からdeployするためのNode.js製のツールである。  
+以前は無償だったが、ver 4からは企業規模によって有償となった（個人利用は無料）。
 
-This template demonstrates how to make a simple HTTP API with Python running on AWS Lambda and API Gateway using the Serverless Framework.
+# セットアップ
+nodeやserverlessのinstall・IAMの作成は公式や記事を参照
 
-This template does not include any kind of persistence (database). For more advanced examples, check out the [serverless/examples repository](https://github.com/serverless/examples/) which includes DynamoDB, Mongo, Fauna and other examples.
+## 各種version
+node v22.9.01  
+serverless 4.4.6  
+Docker version 20.10.17, build 100c701
+aws-cli/2.18.5 Python/3.12.6 Linux/5.15.153.1-microsoft-standard-WSL2 exe/x86_64.ubuntu.20
 
-## Usage
+## serverless framework用のIAM
+serverless frameworkはdeployまで自動化されるため、強めの権限が必要になるので留意。  
+tutorialでは管理者権限といったロールを付与するが、実際の運用においては不要な権限はつけない用に設定必要。
 
-### Deployment
-
-```
-serverless deploy
-```
-
-After deploying, you should see output similar to:
-
-```
-Deploying "aws-python-http-api" to stage "dev" (us-east-1)
-
-✔ Service deployed to stack aws-python-http-api-dev (85s)
-
-endpoint: GET - https://6ewcye3q4d.execute-api.us-east-1.amazonaws.com/
-functions:
-  hello: aws-python-http-api-dev-hello (2.3 kB)
+## node package
+```sh
+node install
 ```
 
-_Note_: In current form, after deployment, your API is public and can be invoked by anyone. For production deployments, you might want to configure an authorizer. For details on how to do that, refer to [http event docs](https://www.serverless.com/framework/docs/providers/aws/events/apigateway/).
+# 全体構成
+![](img/overall.drawio.svg)
 
-### Invocation
-
-After successful deployment, you can call the created application via HTTP:
-
-```
-curl https://xxxxxxx.execute-api.us-east-1.amazonaws.com/
-```
-
-Which should result in response similar to the following (removed `input` content for brevity):
-
-```json
-{
-  "message": "Go Serverless v4.0! Your function executed successfully!"
-}
-```
-
-### Local development
-
-You can invoke your function locally by using the following command:
-
-```
-serverless invoke local --function hello
+# directory構成
+```sh
+.
+├── README.md
+├── api
+│   ├── Dockerfile
+│   ├── data # request check用
+│   │   ├── cars.csv
+│   │   └── students.csv
+│   ├── handler.py
+│   ├── requirements.txt
+│   └── src
+│       ├── __init__.py
+│       └── problem.py
+├── package-lock.json
+├── package.json
+├── picutres
+│   └── overall.drawio
+└── serverless.yml
 ```
 
-Which should result in response similar to the following:
-
-```json
-{
-  "statusCode": 200,
-  "body": "{\n  \"message\": \"Go Serverless v4.0! Your function executed successfully!\"}"
-}
+# 使い方
+## local環境でのdebug
+```sh
+serverless offline --stage local
 ```
 
-Alternatively, it is also possible to emulate API Gateway and Lambda locally by using `serverless-offline` plugin. In order to do that, execute the following command:
-
-```
-serverless plugin install -n serverless-offline
-```
-
-It will add the `serverless-offline` plugin to `devDependencies` in `package.json` file as well as will add it to `plugins` in `serverless.yml`.
-
-After installation, you can start local emulation with:
-
-```
-serverless offline
+## deploy
+```sh
+serverless deploy --stage <stage_name>
 ```
 
-To learn more about the capabilities of `serverless-offline`, please refer to its [GitHub repository](https://github.com/dherault/serverless-offline).
-
-### Bundling dependencies
-
-In case you would like to include 3rd party dependencies, you will need to use a plugin called `serverless-python-requirements`. You can set it up by running the following command:
-
-```
-serverless plugin install -n serverless-python-requirements
+## APIへのリクエスト
+```sh
+curl -X POST -F students=@<data_path>/students.csv -F cars=@<data_path>/cars.csv http://<host_name>/local -o <data_path>/<file_name>
 ```
 
-Running the above will automatically add `serverless-python-requirements` to `plugins` section in your `serverless.yml` file and add it as a `devDependency` to `package.json` file. The `package.json` file will be automatically created if it doesn't exist beforehand. Now you will be able to add your dependencies to `requirements.txt` file (`Pipfile` and `pyproject.toml` is also supported but requires additional configuration) and they will be automatically injected to Lambda package during build process. For more details about the plugin's configuration, please refer to [official documentation](https://github.com/UnitedIncome/serverless-python-requirements).
+
+# 留意事項
+- sercerless offlineとdeploy時のlambdaの挙動が少し違う
+- セキュリティ面には配慮していない
+  - 本来はAPI keyやVPC・security groupの設定等が必要
+
+# 参考文献
+- [Serverless Framework の使い方を初心者にも分かりやすく説明する](https://qiita.com/mkin/items/0a82c84df084496544c6)
+- [API Gateway × Lambdaの設定による挙動の違いを見ていく](https://zenn.dev/marokanatani/articles/aws_api_gateway_behavior_go_around)

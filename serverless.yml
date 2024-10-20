@@ -1,18 +1,40 @@
-org: yishida3
-
 service: serverless-framework-tutorial
+
+plugins:
+  - serverless-offline
+  - serverless-plugin-custom-binary
+  - serverless-plugin-ifelse
+
+custom:
+  defaultStage: dev
+  apigatewayBinary:
+    types:
+      - multipart/form-data
+  serverlessIfElse:
+    - If: '"${opt:stage}" != "local"'
+      Exclude:
+        - functions.solve.handler
 
 provider:
   name: aws
   region: ap-northeast-1
-  runtime: python3.12
+  runtime: python3.10
   profile: serverless-tutorial-agent
-  stage: ${opt:stage, 'dev'}
+  stage: ${opt:stage, self:custom.defaultStage}
+  ecr:
+    images:
+      container-lambda:
+        path: ./api
 
 functions:
-  hello:
-    handler: handler.hello
+  solve:
+    name: ${self:service}-solve-${self:provider.stage}
+    # serverless-offlineを利用するためにhandlerを定義（plugin-ifelseでlocal実行以外は除外）
+    handler: api.handler.solve
+    image:
+      name: container-lambda
+      command: api.handler.solve
     events:
-      - httpApi:
+      - http:
           path: /
-          method: get
+          method: post

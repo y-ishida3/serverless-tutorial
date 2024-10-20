@@ -6,12 +6,12 @@
 以前は無償だったが、ver 4からは企業規模によって有償となった（個人利用は無料）。
 
 # セットアップ
-nodeやserverlessのinstall・IAMの作成は公式や記事を参照
+nodeやserverlessのinstall・IAMの作成は公式や記事を参照。
 
 ## 各種version
 node v22.9.01  
 serverless 4.4.6  
-Docker version 20.10.17, build 100c701
+Docker version 20.10.17, build 100c701  
 aws-cli/2.18.5 Python/3.12.6 Linux/5.15.153.1-microsoft-standard-WSL2 exe/x86_64.ubuntu.20
 
 ## serverless framework用のIAM
@@ -32,19 +32,19 @@ node install
 ├── README.md
 ├── api
 │   ├── Dockerfile
-│   ├── data # request check用
+│   ├── data # request check用のデータ
 │   │   ├── cars.csv
 │   │   └── students.csv
-│   ├── handler.py
+│   ├── handler.py # event handler
 │   ├── requirements.txt
 │   └── src
 │       ├── __init__.py
-│       └── problem.py
+│       └── problem.py # 最適化のコード
 ├── package-lock.json
 ├── package.json
 ├── picutres
 │   └── overall.drawio
-└── serverless.yml
+└── serverless.yml # serverless framework
 ```
 
 # 使い方

@@ -1,5 +1,3 @@
-org: yishida3
-
 service: serverless-framework-tutorial
 
 plugins:

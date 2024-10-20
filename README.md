@@ -24,7 +24,7 @@ node install
 ```
 
 # 全体構成
-![](img/overall.drawio.svg)
+![overall](img/overall.drawio.svg)
 
 # directory構成
 ```sh

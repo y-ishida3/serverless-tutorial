@@ -1,0 +1,193 @@
+service: serverless-fargate
+
+resources:
+  Parameters:
+    MyIP:
+      Description: IP address allowed to access EC2
+      Type: String
+
+  Resources:
+    SampleVPC:
+      Type: AWS::EC2::VPC
+      DeletionPolicy: Delete
+      Properties:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        Tags:
+          - Key: Name
+            Value: SampleVPC
+
+    SampleInternetGateway:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: Name
+            Value: SampleInternetGateway
+
+    VPCGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref SampleVPC
+        InternetGatewayId: !Ref SampleInternetGateway
+
+    SamplePublicSubnet0:
+      DependsOn: VPCGatewayAttachment
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref SampleVPC
+        AvailabilityZone: ${self:provider.region}a
+        CidrBlock: 10.0.0.0/24
+        Tags:
+          - Key: Name
+            Value: SamplePublicSubnet0
+
+    SamplePublicSubnet1:
+      DependsOn: VPCGatewayAttachment
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref SampleVPC
+        AvailabilityZone: ${self:provider.region}c
+        CidrBlock: 10.0.1.0/24
+        Tags:
+          - Key: Name
+            Value: SamplePublicSubnet0
+
+    SamplePublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      DependsOn: VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref SampleVPC
+        Tags:
+          - Key: Name
+            Value: SamplePublicRouteTable
+
+    SamplePublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: VPCGatewayAttachment
+      Properties:
+        RouteTableId: !Ref SamplePublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref SampleInternetGateway
+
+    SubnetRouteTableAssociationPublicSubnet0:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref SamplePublicSubnet0
+        RouteTableId: !Ref SamplePublicRouteTable
+
+    SubnetRouteTableAssociationPublicSubnet1:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref SamplePublicSubnet1
+        RouteTableId: !Ref SamplePublicRouteTable
+
+    SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      DependsOn: SampleVPC
+      Properties:
+        GroupDescription: SecurityGroup for Sample Functions
+        GroupName: !Sub ${AWS::StackName}-alb-sg
+        VpcId: !Ref SampleVPC
+        Tags:
+          - Key: Name
+            Value: !Sub ${AWS::StackName}-alb-sg
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 8501
+            ToPort: 8501
+            CidrIp: 0.0.0.0/0
+
+    ECSALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        Type: application
+        Scheme: internet-facing
+        Name: !Sub ${AWS::StackName}-alb
+        Tags:
+          - Key: Name
+            Value: !Sub ${AWS::StackName}-alb
+        IpAddressType: ipv4
+        Subnets:
+          - !Ref SamplePublicSubnet0
+          - !Ref SamplePublicSubnet1
+        SecurityGroups:
+          - !Ref SecurityGroup
+
+    ALBListener:
+      Type: AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        DefaultActions:
+          - Type: forward
+            TargetGroupArn: !Ref ECSTG
+        LoadBalancerArn: !Ref ECSALB
+        Port: 80
+        Protocol: HTTP
+  
+    ECSTG:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      DependsOn: ECSALB
+      Properties:
+        Name: !Sub ${AWS::StackName}-tg
+        TargetType: ip
+        Matcher:
+          HttpCode: '200'
+        Port: 80
+        Protocol: HTTP
+        VpcId: !Ref SampleVPC
+
+configValidationMode: error
+
+plugins:
+  - serverless-fargate
+
+provider:
+  name: aws
+  region: ap-northeast-1
+  profile: serverless-tutorial-agent
+  stage: ${opt:stage, self:custom.defaultStage}
+  tags:
+    provider: tag
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 'sqs:*'
+      Resource: '*'
+  iamManagedPolicies:
+    - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+  ecr:
+    images:
+      my-app:
+        path: ./app
+        file: Dockerfile
+
+fargate:
+  vpc:
+    securityGroupIds:
+      - !Ref SecurityGroup
+    subnetIds:
+      - !Ref SamplePublicSubnet0
+      - !Ref SamplePublicSubnet1
+    assignPublicIp: true
+  tasks:
+    service:
+      name: my-app-${opt:stage, self:custom.defaultStage}
+      image: my-app
+      tags:
+        service: tag
+      cloudFormationResource:
+        container:
+          PortMappings:
+            - ContainerPort: 8501
+        service:
+          LoadBalancers:
+            - ContainerName: my-app-${opt:stage, self:custom.defaultStage}
+              ContainerPort: '8501'
+              TargetGroupArn: !Ref ECSTG

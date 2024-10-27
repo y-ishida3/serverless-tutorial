@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "serverless-fargate": "^0.0.12"
+  }
+}

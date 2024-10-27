@@ -20,6 +20,7 @@ node install
 ```
 
 # 全体構成
+※少し自信ないので、詳細把握する
 ![overall](img/overall.drawio.svg)
 
 # directory構成
